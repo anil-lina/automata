@@ -1,7 +1,7 @@
 import os,shutil
 file_ext,all_files,all_file_ext=[],[],[]
 print("Finding Present working directory")
-cur_dir=os.getcwd()+"\\Desktop\\PSTools"
+cur_dir=os.getcwd()
 print("Found Present Working Directory as ", cur_dir)
 print("Scanning the current directory for files")
 obj1 = os.walk(cur_dir)
