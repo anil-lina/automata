@@ -1,0 +1,5 @@
+shoonya-api
+pandas
+pyotp
+pandas-ta
+PyYAML
