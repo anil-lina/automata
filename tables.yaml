@@ -1,6 +1,8 @@
 - name: employees
   incremental: true
+  cursor_column: PROCESSED_DTTM
 - name: departments
   incremental: false
 - name: salaries
   incremental: true
+  cursor_column: LAST_UPDATED
