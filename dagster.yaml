@@ -1,0 +1,5 @@
+run_launcher:
+  module: dagster.core.launcher
+  class: MultiprocessRunLauncher
+  config:
+    max_concurrent_runs: 10

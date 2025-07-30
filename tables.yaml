@@ -1,0 +1,6 @@
+- name: employees
+  incremental: true
+- name: departments
+  incremental: false
+- name: salaries
+  incremental: true
