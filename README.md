@@ -4,11 +4,12 @@ This project is a Dagster-based data pipeline that extracts data from an Oracle 
 
 ## Features
 
-- **Incremental Loading:** The pipeline can perform incremental loads for specified tables based on a configurable timestamp column. The last processed timestamp is stored in `state.json`.
+- **Incremental Loading:** The pipeline can perform incremental loads for specified tables based on a configurable timestamp column. The last processed timestamp is extracted from the last chunk of data and stored in `state.json`.
 - **Parallel Execution:** The pipeline can process multiple tables in parallel, significantly reducing the overall execution time.
-- **Dynamic Assets:** The pipeline uses Dagster's asset factories to create a separate asset for each table, allowing for flexible and scalable data processing.
+- **Asset Factories:** The pipeline uses Dagster's asset factories to create a separate asset for each table, allowing for flexible and scalable data processing.
 - **Configuration-driven:** The tables to be processed are defined in a simple YAML file.
-- **Chunking:** The data is chunked into files of 300,000 rows before being uploaded to OCI.
+- **JSON Export:** The data is fetched from Oracle and exported as JSON to reduce memory pressure and remove the dependency on `pandas`.
+- **Chunking:** The data is fetched from Oracle in chunks of 300,000 rows. Each chunk is uploaded to OCI as a separate JSON file with the naming convention `YYYYMMDDHHmm_table_name.json`.
 - **Configurable Schedule:** The pipeline is scheduled to run hourly by default, but can be easily configured to run at different frequencies.
 
 ## Prerequisites

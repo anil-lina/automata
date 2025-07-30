@@ -1,13 +1,13 @@
 ## About This Project
 
-This project is a Dagster data pipeline that extracts data from an Oracle database and loads it into an OCI Object Storage bucket. It uses asset factories to process multiple tables in parallel and supports incremental loading with a configurable cursor column. The data is chunked into files of 300,000 rows before being uploaded to OCI.
+This project is a Dagster data pipeline that extracts data from an Oracle database and loads it into an OCI Object Storage bucket. It uses asset factories to process multiple tables in parallel and supports incremental loading with a configurable cursor column. The data is fetched from Oracle in chunks of 300,000 rows and uploaded to OCI as separate JSON files with the naming convention `YYYYMMDDHHmm_table_name.json`.
 
 ### Project Structure
 
 - **`src/`**: Contains the main source code for the pipeline.
   - **`assets/`**: Contains the Dagster asset factories.
-    - `oracle.py`: Asset factory for extracting data from Oracle. It generates an asset for each table defined in `tables.yaml`.
-    - `oci.py`: Asset factory for uploading data to OCI.
+    - `oracle.py`: Asset factory for extracting data from Oracle in chunks and formatting it as JSON. It generates an asset for each table defined in `tables.yaml`. The max timestamp for incremental loads is extracted from the last chunk of data.
+    - `oci.py`: Asset factory for uploading JSON data chunks to OCI.
   - **`sensors/`**: Contains the Dagster sensors and schedules.
     - `daily_trigger.py`: A schedule for the `all_assets_job`.
   - **`utils/`**: Contains utility functions.
@@ -26,7 +26,7 @@ This project is a Dagster data pipeline that extracts data from an Oracle databa
 
 - **Adding a new table**: Add a new entry to the `tables.yaml` file.
 - **Changing the schedule**: Modify the `cron_schedule` in `src/sensors/daily_trigger.py`.
-- **Changing the chunk size**: Modify the chunk size in `src/assets/oci.py`.
+- **Changing the chunk size**: Modify the chunk size in `src/assets/oracle.py`.
 - **Updating dependencies**: Add the new dependency to `requirements.txt`.
 - **Modifying the extraction or loading logic**: The core logic for extraction and loading is in the asset factories in `src/assets/oracle.py` and `src/assets/oci.py` respectively.
 
