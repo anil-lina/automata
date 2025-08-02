@@ -5,22 +5,10 @@ from datetime import datetime
 from pathlib import Path
 import tempfile
 
-from dagster import asset, Config, AssetExecutionContext, DagsterInvariantViolationError
+from dagster import asset, AssetExecutionContext, DagsterInvariantViolationError
 import oracledb
 from oci.object_storage import ObjectStorageClient, UploadManager
-
-class SyncConfig(Config):
-    """
-    Configuration for the oracle_to_oci_sync asset.
-
-    Attributes:
-        tables_config_path (str): Path to the YAML file with table configurations.
-        oci_bucket (str): Name of the OCI bucket.
-        state_dir (str): Directory to store state files. Defaults to "state".
-    """
-    tables_config_path: str
-    oci_bucket: str
-    state_dir: str = "state"
+from .. import config
 
 def get_last_incremental_value(state_dir: Path, table_name: str) -> any:
     """Reads the last incremental value from the state file."""
@@ -43,13 +31,13 @@ def save_last_incremental_value(state_dir: Path, table_name: str, value: any):
     description="Syncs tables from Oracle to OCI Object Storage.",
     required_resource_keys={"oracle", "oci"},
 )
-def sync_asset(context: AssetExecutionContext, config: SyncConfig, oracle: oracledb.Connection, oci: ObjectStorageClient):
+def sync_asset(context: AssetExecutionContext, oracle: oracledb.Connection, oci: ObjectStorageClient):
     """
     This asset connects to an Oracle DB, retrieves data in chunks,
     and uploads it to an OCI bucket as JSON files.
     """
     # Load table configurations from YAML
-    with open(config.tables_config_path, 'r') as f:
+    with open(config.TABLES_CONFIG_PATH, 'r') as f:
         tables_config = yaml.safe_load(f)
 
     tables = tables_config.get("tables", [])
@@ -58,8 +46,8 @@ def sync_asset(context: AssetExecutionContext, config: SyncConfig, oracle: oracl
             f"This asset is configured to handle a maximum of 2 tables per run, but {len(tables)} were provided."
         )
 
-    oci_bucket = config.oci_bucket
-    state_dir = Path(config.state_dir)
+    oci_bucket = config.OCI_ASSET_BUCKET
+    state_dir = Path("state") # Assuming state is in a 'state' directory at project root.
 
     namespace = oci.get_namespace().data
     upload_manager = UploadManager(oci)
@@ -77,8 +65,12 @@ def sync_asset(context: AssetExecutionContext, config: SyncConfig, oracle: oracl
         if is_incremental and incremental_column:
             last_inc_value = get_last_incremental_value(state_dir, table_name)
             if last_inc_value:
-                # Using bind variables for security and correctness
-                query += f" WHERE {incremental_column} > :last_inc_value"
+                incremental_column_type = table_info.get("incremental_column_type")
+                if incremental_column_type == "timestamp":
+                    query += f" WHERE {incremental_column} > to_timestamp(:last_inc_value, 'YYYY-MM-DD HH24:MI:SS.FF6')"
+                else:
+                    query += f" WHERE {incremental_column} > :last_inc_value"
+
             query += f" ORDER BY {incremental_column}"
 
         cursor = oracle.cursor()

@@ -29,11 +29,14 @@ Clone this repository and navigate to the project root (`dagster_oracle_to_oci`)
 pip install -e .
 ```
 
-### 2. Configure Environment Variables
+### 2. Configure Your Project
 
-This project uses a `.env` file to manage secrets and connection details. Create a file named `.env` in the project root (`dagster_oracle_to_oci/.env`) and populate it with your credentials.
+Configuration for this project is managed in two places:
 
-**`.env` template:**
+1.  **`dagster_oracle_to_oci/config.py`**: This file sources required connection details and credentials from environment variables. For local development, you can create a `.env` file in the project root (`dagster_oracle_to_oci/.env`) to have these automatically loaded.
+2.  **`config/tables.yaml`**: This file defines which tables the asset should process.
+
+**`.env` template for local development:**
 
 ```dotenv
 # Oracle Database Credentials
@@ -48,9 +51,9 @@ OCI_USER_OCID=ocid1.user.oc1..your_user_ocid
 OCI_FINGERPRINT=your_api_key_fingerprint
 OCI_KEY_FILE=/path/to/your/oci_api_key.pem
 OCI_TENANCY_OCID=ocid1.tenancy.oc1..your_tenancy_ocid
-OCI_REGION=us-ashburn-1 # e.g., us-ashburn-1
+OCI_REGION=us-ashburn-1
 
-# OCI Bucket
+# OCI Bucket for the Asset
 OCI_BUCKET_NAME=your-target-bucket-name
 ```
 
@@ -87,32 +90,7 @@ This will start the Dagster webserver, typically available at `http://localhost:
 
 - **Manual Runs**:
   - In the Dagster UI, navigate to the **Assets** tab.
-  - Select the `oracle_to_oci_sync` asset and click **Materialize** to trigger a manual run.
-  - You will be prompted to provide the necessary configuration for the run. You can use the following YAML snippet, which points to the configuration files and uses the environment variables from your `.env` file for the resources.
-
-    ```yaml
-    # Run configuration for oracle_to_oci_sync
-    ops:
-      oracle_to_oci_sync:
-        config:
-          tables_config_path: "config/tables.yaml"
-          oci_bucket: {"env": "OCI_BUCKET_NAME"}
-    resources:
-      oracle:
-        config:
-          user: {"env": "ORACLE_USER"}
-          password: {"env": "ORACLE_PASSWORD"}
-          host: {"env": "ORACLE_HOST"}
-          port: {"env": "ORACLE_PORT"}
-          service_name: {"env": "ORACLE_SERVICE_NAME"}
-      oci:
-        config:
-          user: {"env": "OCI_USER_OCID"}
-          fingerprint: {"env": "OCI_FINGERPRINT"}
-          key_file: {"env": "OCI_KEY_FILE"}
-          tenancy: {"env": "OCI_TENANCY_OCID"}
-          region: {"env": "OCI_REGION"}
-    ```
+  - Select the `oracle_to_oci_sync` asset and click **Materialize** to trigger a manual run. Since all configuration is now managed via `config.py` and `config/tables.yaml`, you can launch the run with empty configuration.
 
 - **Scheduled Runs**:
   - The job is configured to run automatically every hour.

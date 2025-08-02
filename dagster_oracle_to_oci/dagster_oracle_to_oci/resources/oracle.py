@@ -1,28 +1,22 @@
-import os
 import oracledb
-from dagster import resource, Field
+from dagster import resource
+from .. import config
 
-@resource({
-    "user": Field(str, description="Oracle username"),
-    "password": Field(str, description="Oracle password"),
-    "host": Field(str, description="Oracle host"),
-    "port": Field(int, default_value=1521, description="Oracle port"),
-    "service_name": Field(str, description="Oracle service name"),
-})
-def oracle_resource(context):
+@resource
+def oracle_resource(_):
     """
     A Dagster resource for connecting to an Oracle database.
+    It uses the configuration from the project's config.py file.
     """
-    config = context.resource_config
     dsn = oracledb.makedsn(
-        config["host"],
-        config["port"],
-        service_name=config["service_name"],
+        config.ORACLE_HOST,
+        config.ORACLE_PORT,
+        service_name=config.ORACLE_SERVICE_NAME,
     )
 
     connection = oracledb.connect(
-        user=config["user"],
-        password=config["password"],
+        user=config.ORACLE_USER,
+        password=config.ORACLE_PASSWORD,
         dsn=dsn
     )
 

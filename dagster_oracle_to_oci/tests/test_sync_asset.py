@@ -8,7 +8,7 @@ from pathlib import Path
 import yaml
 import json
 
-from dagster_oracle_to_oci.assets.sync import sync_asset, SyncConfig
+from dagster_oracle_to_oci.assets.sync import sync_asset
 
 @pytest.fixture
 def mock_oracle_connection():
@@ -36,7 +36,8 @@ def mock_oci_client():
     return mock_client
 
 @patch('dagster_oracle_to_oci.assets.sync.UploadManager')
-def test_sync_asset_full_load(mock_upload_manager_class, tmp_path, mock_oracle_connection, mock_oci_client):
+@patch('dagster_oracle_to_oci.assets.sync.config')
+def test_sync_asset_full_load(mock_config, mock_upload_manager_class, tmp_path, mock_oracle_connection, mock_oci_client):
     """Tests the sync_asset for a full load scenario."""
     # Create a dummy config file
     config_data = {
@@ -48,12 +49,9 @@ def test_sync_asset_full_load(mock_upload_manager_class, tmp_path, mock_oracle_c
     with open(config_file, 'w') as f:
         yaml.dump(config_data, f)
 
-    # Create SyncConfig instance
-    sync_config = SyncConfig(
-        tables_config_path=str(config_file),
-        oci_bucket="test-bucket",
-        state_dir=str(tmp_path / "state")
-    )
+    # Patch the config object
+    mock_config.TABLES_CONFIG_PATH = str(config_file)
+    mock_config.OCI_ASSET_BUCKET = "test-bucket"
 
     # Build asset context
     context = build_asset_context(
@@ -64,7 +62,7 @@ def test_sync_asset_full_load(mock_upload_manager_class, tmp_path, mock_oracle_c
     )
 
     # Run the asset
-    sync_asset(context=context, config=sync_config, oracle=mock_oracle_connection, oci=mock_oci_client)
+    sync_asset(context=context, oracle=mock_oracle_connection, oci=mock_oci_client)
 
     # Assertions
     mock_upload_manager_instance = mock_upload_manager_class.return_value
@@ -79,7 +77,8 @@ def test_sync_asset_full_load(mock_upload_manager_class, tmp_path, mock_oracle_c
     assert not state_dir.exists()
 
 @patch('dagster_oracle_to_oci.assets.sync.UploadManager')
-def test_sync_asset_incremental_load(mock_upload_manager_class, tmp_path, mock_oracle_connection, mock_oci_client):
+@patch('dagster_oracle_to_oci.assets.sync.config')
+def test_sync_asset_incremental_load(mock_config, mock_upload_manager_class, tmp_path, mock_oracle_connection, mock_oci_client):
     """Tests the sync_asset for an incremental load scenario."""
     config_data = {
         "tables": [
@@ -98,17 +97,17 @@ def test_sync_asset_incremental_load(mock_upload_manager_class, tmp_path, mock_o
     ]
     mock_oracle_connection.cursor.return_value = mock_cursor
 
-    state_dir = tmp_path / "state"
-    state_dir.mkdir()
+    # Note: the asset now hardcodes the state_dir to "state". We can't easily change it for a test
+    # without also patching Path. We will assume the test runs in a context where "state" dir is ok.
+    # For more complex scenarios, the state_dir could be made configurable on the resource.
+    state_dir = Path("state")
+    state_dir.mkdir(exist_ok=True)
     state_file = state_dir / "CUSTOMERS.json"
     with open(state_file, 'w') as f:
         json.dump({"last_incremental_value": 2}, f)
 
-    sync_config = SyncConfig(
-        tables_config_path=str(config_file),
-        oci_bucket="test-bucket",
-        state_dir=str(state_dir)
-    )
+    mock_config.TABLES_CONFIG_PATH = str(config_file)
+    mock_config.OCI_ASSET_BUCKET = "test-bucket"
 
     context = build_asset_context(
         resources={
@@ -117,7 +116,7 @@ def test_sync_asset_incremental_load(mock_upload_manager_class, tmp_path, mock_o
         }
     )
 
-    sync_asset(context=context, config=sync_config, oracle=mock_oracle_connection, oci=mock_oci_client)
+    sync_asset(context=context, oracle=mock_oracle_connection, oci=mock_oci_client)
 
     mock_oracle_connection.cursor().execute.assert_called_with(
         "SELECT * FROM CUSTOMERS WHERE ID > :last_inc_value ORDER BY ID",
@@ -131,7 +130,8 @@ def test_sync_asset_incremental_load(mock_upload_manager_class, tmp_path, mock_o
         new_state = json.load(f)
     assert new_state["last_incremental_value"] == '4'
 
-def test_sync_asset_too_many_tables(tmp_path):
+@patch('dagster_oracle_to_oci.assets.sync.config')
+def test_sync_asset_too_many_tables(mock_config, tmp_path):
     """Tests that the asset fails if more than 2 tables are configured."""
     config_data = {
         "tables": [
@@ -144,28 +144,21 @@ def test_sync_asset_too_many_tables(tmp_path):
     with open(config_file, 'w') as f:
         yaml.dump(config_data, f)
 
-    sync_config = SyncConfig(
-        tables_config_path=str(config_file),
-        oci_bucket="test-bucket",
-        state_dir=str(tmp_path / "state")
-    )
-    # Create mocks with the correct spec to satisfy the type checker
-    mock_oracle = MagicMock(spec=oracledb.Connection)
-    mock_oci = MagicMock(spec=ObjectStorageClient)
+    mock_config.TABLES_CONFIG_PATH = str(config_file)
 
-    context = build_asset_context(resources={"oracle": mock_oracle, "oci": mock_oci})
+    context = build_asset_context(resources={"oracle": MagicMock(), "oci": MagicMock()})
 
     with pytest.raises(DagsterInvariantViolationError, match="maximum of 2 tables"):
-        # Pass the specced mocks to the function as well
-        sync_asset(context=context, config=sync_config, oracle=mock_oracle, oci=mock_oci)
+        sync_asset(context=context, oracle=MagicMock(spec=oracledb.Connection), oci=MagicMock(spec=ObjectStorageClient))
 
 @patch('dagster_oracle_to_oci.assets.sync.UploadManager')
-def test_sync_asset_incremental_load_timestamp(mock_upload_manager_class, tmp_path, mock_oracle_connection, mock_oci_client):
+@patch('dagster_oracle_to_oci.assets.sync.config')
+def test_sync_asset_incremental_load_timestamp(mock_config, mock_upload_manager_class, tmp_path, mock_oracle_connection, mock_oci_client):
     """Tests the sync_asset for an incremental load scenario with timestamps."""
     from datetime import datetime
     config_data = {
         "tables": [
-            {"name": "EVENTS", "incremental": True, "incremental_column": "EVENT_TIME"}
+            {"name": "EVENTS", "incremental": True, "incremental_column": "EVENT_TIME", "incremental_column_type": "timestamp"}
         ]
     }
     config_file = tmp_path / "tables.yaml"
@@ -181,19 +174,16 @@ def test_sync_asset_incremental_load_timestamp(mock_upload_manager_class, tmp_pa
     ]
     mock_oracle_connection.cursor.return_value = mock_cursor
 
-    state_dir = tmp_path / "state"
-    state_dir.mkdir()
+    state_dir = Path("state")
+    state_dir.mkdir(exist_ok=True)
     state_file = state_dir / "EVENTS.json"
     last_timestamp = datetime(2025, 6, 22, 16, 46, 3)
     # The state file will store the timestamp as a string, as per json.dump(default=str)
     with open(state_file, 'w') as f:
         json.dump({"last_incremental_value": str(last_timestamp)}, f)
 
-    sync_config = SyncConfig(
-        tables_config_path=str(config_file),
-        oci_bucket="test-bucket",
-        state_dir=str(state_dir)
-    )
+    mock_config.TABLES_CONFIG_PATH = str(config_file)
+    mock_config.OCI_ASSET_BUCKET = "test-bucket"
 
     context = build_asset_context(
         resources={
@@ -202,11 +192,11 @@ def test_sync_asset_incremental_load_timestamp(mock_upload_manager_class, tmp_pa
         }
     )
 
-    sync_asset(context=context, config=sync_config, oracle=mock_oracle_connection, oci=mock_oci_client)
+    sync_asset(context=context, oracle=mock_oracle_connection, oci=mock_oci_client)
 
     # Check that the query was filtered with the correct timestamp string
     mock_oracle_connection.cursor().execute.assert_called_with(
-        "SELECT * FROM EVENTS WHERE EVENT_TIME > :last_inc_value ORDER BY EVENT_TIME",
+        "SELECT * FROM EVENTS WHERE EVENT_TIME > to_timestamp(:last_inc_value, 'YYYY-MM-DD HH24:MI:SS.FF6') ORDER BY EVENT_TIME",
         last_inc_value=str(last_timestamp)
     )
 
