@@ -1,0 +1,6 @@
+tables:
+  - name: "CUSTOMERS"
+    incremental: true
+    incremental_column: "LAST_UPDATED"
+  - name: "PRODUCTS"
+    incremental: false

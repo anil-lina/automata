@@ -1,0 +1,8 @@
+pyproject.toml
+dagster_oracle_to_oci/__init__.py
+dagster_oracle_to_oci.egg-info/PKG-INFO
+dagster_oracle_to_oci.egg-info/SOURCES.txt
+dagster_oracle_to_oci.egg-info/dependency_links.txt
+dagster_oracle_to_oci.egg-info/requires.txt
+dagster_oracle_to_oci.egg-info/top_level.txt
+tests/test_sync_asset.py
