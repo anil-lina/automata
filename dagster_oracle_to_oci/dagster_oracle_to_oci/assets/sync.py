@@ -31,11 +31,14 @@ def save_last_incremental_value(state_dir: Path, table_name: str, value: any):
     description="Syncs tables from Oracle to OCI Object Storage.",
     required_resource_keys={"oracle", "oci"},
 )
-def sync_asset(context: AssetExecutionContext, oracle: oracledb.Connection, oci: ObjectStorageClient):
+def sync_asset(context: AssetExecutionContext):
     """
     This asset connects to an Oracle DB, retrieves data in chunks,
     and uploads it to an OCI bucket as JSON files.
     """
+    oracle = context.resources.oracle
+    oci = context.resources.oci
+
     # Load table configurations from YAML
     with open(config.TABLES_CONFIG_PATH, 'r') as f:
         tables_config = yaml.safe_load(f)

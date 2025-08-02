@@ -62,7 +62,7 @@ def test_sync_asset_full_load(mock_config, mock_upload_manager_class, tmp_path, 
     )
 
     # Run the asset
-    sync_asset(context=context, oracle=mock_oracle_connection, oci=mock_oci_client)
+    sync_asset(context=context)
 
     # Assertions
     mock_upload_manager_instance = mock_upload_manager_class.return_value
@@ -116,7 +116,7 @@ def test_sync_asset_incremental_load(mock_config, mock_upload_manager_class, tmp
         }
     )
 
-    sync_asset(context=context, oracle=mock_oracle_connection, oci=mock_oci_client)
+    sync_asset(context=context)
 
     mock_oracle_connection.cursor().execute.assert_called_with(
         "SELECT * FROM CUSTOMERS WHERE ID > :last_inc_value ORDER BY ID",
@@ -146,10 +146,10 @@ def test_sync_asset_too_many_tables(mock_config, tmp_path):
 
     mock_config.TABLES_CONFIG_PATH = str(config_file)
 
-    context = build_asset_context(resources={"oracle": MagicMock(), "oci": MagicMock()})
+    context = build_asset_context(resources={"oracle": MagicMock(spec=oracledb.Connection), "oci": MagicMock(spec=ObjectStorageClient)})
 
     with pytest.raises(DagsterInvariantViolationError, match="maximum of 2 tables"):
-        sync_asset(context=context, oracle=MagicMock(spec=oracledb.Connection), oci=MagicMock(spec=ObjectStorageClient))
+        sync_asset(context=context)
 
 @patch('dagster_oracle_to_oci.assets.sync.UploadManager')
 @patch('dagster_oracle_to_oci.assets.sync.config')
@@ -192,7 +192,7 @@ def test_sync_asset_incremental_load_timestamp(mock_config, mock_upload_manager_
         }
     )
 
-    sync_asset(context=context, oracle=mock_oracle_connection, oci=mock_oci_client)
+    sync_asset(context=context)
 
     # Check that the query was filtered with the correct timestamp string
     mock_oracle_connection.cursor().execute.assert_called_with(
