@@ -1,0 +1,14 @@
+Metadata-Version: 2.4
+Name: dagster_oracle_to_oci
+Version: 0.0.1
+Summary: A Dagster project to transfer data from Oracle to OCI.
+Author-email: Jules <jules@example.com>
+Requires-Python: >=3.8
+Requires-Dist: dagster
+Requires-Dist: dagster-webserver
+Requires-Dist: oracledb
+Requires-Dist: oci
+Requires-Dist: PyYAML
+Provides-Extra: test
+Requires-Dist: pytest; extra == "test"
+Requires-Dist: pytest-cov; extra == "test"

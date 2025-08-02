@@ -1,0 +1,9 @@
+dagster
+dagster-webserver
+oracledb
+oci
+PyYAML
+
+[test]
+pytest
+pytest-cov
